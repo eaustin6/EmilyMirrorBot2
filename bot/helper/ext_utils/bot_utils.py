@@ -7,6 +7,14 @@ import shutil
 import requests
 import urllib.request
 
+from re import match, findall
+from threading import Thread, Event
+from time import time
+from math import ceil
+from psutil import virtual_memory, cpu_percent, disk_usage
+from requests import head as rhead
+from urllib.request import urlopen
+
 from bot.helper.telegram_helper.bot_commands import BotCommands
 from bot import dispatcher, download_dict, download_dict_lock, STATUS_LIMIT, botStartTime, LOGGER, FINISHED_PROGRESS_STR, UNFINISHED_PROGRESS_STR
 from bot import *
@@ -156,15 +164,7 @@ def get_readable_message():
                num_waiting += 1
             if stats.status() == MirrorStatus.STATUS_UPLOADING:
                num_upload += 1
-        msg = f"<b>DLs: {num_active} || ULs: {num_upload} || Queued: {num_waiting}</b>\n\n"
-        if STATUS_LIMIT is not None:
-            dick_no = len(download_dict)
-            global pages
-            pages = math.ceil(dick_no/STATUS_LIMIT)
-            if pages != 0 and PAGE_NO > pages:
-                globals()['COUNT'] -= STATUS_LIMIT
-                globals()['PAGE_NO'] -= 1
-            START = COUNT
+        msg = f"<b>DLs: {num_active} || ULs: {num_upload} || Queued: {num_waiting}</b>\n"
         for index, download in enumerate(list(download_dict.values())[START:], start=1):
             msg += f"\n\n<b> Name:</b> <code>{download.name()}</code>"
             msg += f"\n<b> Status:</b> <i>{download.status()}</i>"
@@ -191,7 +191,7 @@ def get_readable_message():
                 except:
                     pass    
                 try:
-                    msg += f"\n<b> Engine:</b> Qbit | <b>🌍:</b> {download.torrent_info().num_leechs} | <b>🌱:</b> {download.torrent_info().num_seeds} \n" 
+                    msg += f"\n<b> Engine:</b> Qbit | <b>🌍:</b> {download.torrent_info().num_leechs} | <b>🌱:</b> {download.torrent_info().num_seeds}" 
                 except:
                     pass
                 msg += f"\n<b> User:</b> <b>{download.message.from_user.first_name}</b>"    
@@ -205,8 +205,6 @@ def get_readable_message():
                 msg += f"\n<code>/{BotCommands.CancelMirror} {download.gid()}</code>"
             else:
                 msg += f"\n<b> Size: </b>{download.size()}"
-            if STATUS_LIMIT is not None and index == STATUS_LIMIT:
-                break
         total, used, free = shutil.disk_usage('.')
         free = get_readable_file_size(free)
         currentTime = get_readable_time(time.time() - botStartTime)
@@ -226,34 +224,33 @@ def get_readable_message():
         dlspeed = get_readable_file_size(dlspeed_bytes)
         ulspeed = get_readable_file_size(uldl_bytes)
         bmsg += f"\n<b> DL:</b> {dlspeed}/s | <b> UL:</b> {ulspeed}/s"
-        if STATUS_LIMIT is not None and dick_no > STATUS_LIMIT:
-            msg += f"\n\n<b>📖 Page:</b> {PAGE_NO}/{pages} | <b>📝 Tasks:</b> {dick_no}\n"
-            buttons = button_build.ButtonMaker()
-            buttons.sbutton("Previous", "pre")
-            buttons.sbutton("Next", "nex")
-            button = InlineKeyboardMarkup(buttons.build_menu(2))
-            return msg + bmsg, button
         return msg + bmsg, ""
 
 def turn(update, context):
     query = update.callback_query
+    data = query.data
+    data = data.split(' ')
     query.answer()
-    global COUNT, PAGE_NO
-    if query.data == "nex":
-        if PAGE_NO == pages:
-            COUNT = 0
-            PAGE_NO = 1
-        else:
-            COUNT += STATUS_LIMIT
-            PAGE_NO += 1
-    elif query.data == "pre":
-        if PAGE_NO == 1:
-            COUNT = STATUS_LIMIT * (pages - 1)
-            PAGE_NO = pages
-        else:
-            COUNT -= STATUS_LIMIT
-            PAGE_NO -= 1
-    message_utils.update_all_messages()
+    try:
+        with download_dict_lock:
+            global COUNT, PAGE_NO
+            if data[1] == "nex":
+                if PAGE_NO == pages:
+                    COUNT = 0
+                    PAGE_NO = 1
+                else:
+                    COUNT += STATUS_LIMIT
+                    PAGE_NO += 1
+            elif data[1] == "pre":
+                if PAGE_NO == 1:
+                    COUNT = STATUS_LIMIT * (pages - 1)
+                    PAGE_NO = pages
+                else:
+                    COUNT -= STATUS_LIMIT
+                    PAGE_NO -= 1
+        message_utils.update_all_messages()
+    except:
+        query.message.delete()
 
 def get_readable_time(seconds: int) -> str:
     result = ''

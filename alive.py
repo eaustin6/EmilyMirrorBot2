@@ -3,7 +3,7 @@ import requests
 import os
 import logging
 
-BASE_URL = os.environ.get('BASE_URL_OF_BOT', None)
+BASE_URL = os.environ.get('BASE_URL_OF_BOT', None).rstrip("/")
 try:
     if len(BASE_URL) == 0:
         raise TypeError

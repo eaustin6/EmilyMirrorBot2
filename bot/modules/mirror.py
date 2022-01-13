@@ -320,7 +320,7 @@ class MirrorListener:
             log_m = f"\n\n<b>fιℓє υρℓσα∂є∂, ¢ℓι¢к вєℓσω вυттσи тσ ѕєє👇</b>"
         else:
             pass
-        sendMarkup(msg + fwdpm, self.bot, self.update, InlineKeyboardMarkup([[InlineKeyboardButton(text="🇨‌🇱‌🇮‌🇨‌🇰‌ 🇭‌🇪‌🇷‌🇪", url=logmsg.link)]]))
+        sendMarkup(msg + fwdpm, self.bot, self.update, InlineKeyboardMarkup([[InlineKeyboardButton(text="Click Here", url=logmsg.link)]]))
         sendPrivate(msg + msg_g, self.bot, self.update, InlineKeyboardMarkup(buttons.build_menu(2)))
         if self.isQbit and QB_SEED:
            return sendMarkup(msg + msg_g, self.bot, self.update, InlineKeyboardMarkup(buttons.build_menu(2)))

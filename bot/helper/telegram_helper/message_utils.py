@@ -11,6 +11,7 @@ import datetime
 from datetime import datetime
 import psutil, shutil
 
+
 from bot import AUTO_DELETE_MESSAGE_DURATION, LOGGER, bot, dispatcher, status_reply_dict, status_reply_dict_lock, \
                 Interval, DOWNLOAD_STATUS_UPDATE_INTERVAL, RSS_CHAT_ID, rss_session, LOG_CHANNEL_ID, LOG_CHANNEL_LINK, LOG_UNAME, LOG_CHANNEL
 from bot import *              
@@ -124,12 +125,11 @@ def update_all_messages():
                 try:
                     keyboard = [[InlineKeyboardButton("Refresh", callback_data=str(ONE)),
                                  InlineKeyboardButton("Stats", callback_data=str(THREE)),],
-                                [InlineKeyboardButton("Close Window", callback_data=str(TWO)),]]
+                                [InlineKeyboardButton("Close", callback_data=str(TWO)),]]
                     editMessage(msg, status_reply_dict[chat_id], reply_markup=InlineKeyboardMarkup(keyboard))
                 except Exception as e:
                     LOGGER.error(str(e))
                 status_reply_dict[chat_id].text = msg
-
 
 def sendStatusMessage(msg, bot):
     if len(Interval) == 0:
@@ -218,10 +218,10 @@ BOT UPTIME 🕐 : {currentTime}
 CPU : {progress_bar(cpu)} {cpu}%
 RAM : {progress_bar(mem)} {mem}%
 DISK : {progress_bar(disk)} {disk}%
+
 TOTAL : {total}
-
-
 USED : {used} || FREE : {free}
+
 SENT : {sent} || RECV : {recv}
 """
     return stats
