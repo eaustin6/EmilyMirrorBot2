@@ -1,5 +1,4 @@
-import threading
-
+from threading import Thread
 from telegram import InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler
 
@@ -15,13 +14,13 @@ def list_buttons(update, context):
     try:
         key = update.message.text.split(" ", maxsplit=1)[1]
     except IndexError:
-        return sendMessage('sᴇɴᴅ ᴀ sᴇᴀʀᴄʜ ᴋᴇʏ ᴀʟᴏɴɢ ᴡɪᴛʜ ᴄᴏᴍᴍᴀɴᴅ', context.bot, update)
+        return sendMessage('Send a search key along with command', context.bot, update)
     buttons = button_build.ButtonMaker()
     buttons.sbutton("Drive Root", f"types {user_id} root")
     buttons.sbutton("Recursive", f"types {user_id} recu")
     buttons.sbutton("Cancel", f"types {user_id} cancel")
     button = InlineKeyboardMarkup(buttons.build_menu(2))
-    sendMarkup('🇨‌🇭‌🇴‌🇴‌🇸‌🇪‌ 🇴‌🇵‌🇹‌🇮‌🇴‌🇳‌ 🇹‌🇴‌ 🇱‌🇮‌🇸‌🇹‌.', context.bot, update, button)
+    sendMarkup('Choose option to list.', context.bot, update, button)
 
 def select_type(update, context):
     query = update.callback_query
@@ -31,7 +30,7 @@ def select_type(update, context):
     data = query.data
     data = data.split(" ")
     if user_id != int(data[1]):
-        query.answer(text="Dont Bother!", show_alert=True)
+        query.answer(text="Not Yours!", show_alert=True)
     elif data[2] in ["root", "recu"]:
         query.answer()
         buttons = button_build.ButtonMaker()
@@ -45,11 +44,11 @@ def select_type(update, context):
         query.answer()
         list_method = data[3]
         item_type = data[2]
-        editMessage(f"<b>🇸‌🇪‌🇦‌🇷‌🇨‌🇭‌🇮‌🇳‌🇬‌ 🇫‌🇴‌🇷‌ <i>{key}</i></b>", msg)
-        threading.Thread(target=_list_drive, args=(key, msg, list_method, item_type)).start()
+        editMessage(f"<b>Searching for <i>{key}</i></b>", msg)
+        Thread(target=_list_drive, args=(key, msg, list_method, item_type)).start()
     else:
         query.answer()
-        editMessage("𝔩𝔦𝔰𝔱 𝔥𝔞𝔰 𝔟𝔢𝔢𝔫 𝔠𝔞𝔫𝔠𝔢𝔩𝔢𝔡!", msg)
+        editMessage("list has been canceled!", msg)
 
 def _list_drive(key, bmsg, list_method, item_type):
     LOGGER.info(f"listing: {key}")
@@ -59,7 +58,7 @@ def _list_drive(key, bmsg, list_method, item_type):
     if button:
         editMessage(msg, bmsg, button)
     else:
-        editMessage(f'𝔑𝔬 𝔯𝔢𝔰𝔲𝔩𝔱 𝔣𝔬𝔲𝔫𝔡 𝔣𝔬𝔯 <i>{key}</i>', bmsg)
+        editMessage(f'No result found for <i>{key}</i>', bmsg)
 
 list_handler = CommandHandler(BotCommands.ListCommand, list_buttons, filters=CustomFilters.authorized_chat | CustomFilters.authorized_user, run_async=True)
 list_type_handler = CallbackQueryHandler(select_type, pattern="types", run_async=True)

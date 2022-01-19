@@ -45,11 +45,7 @@ class _BotCommands:
         self.RssSubCommand = 'rsssub'
         self.RssUnSubCommand = 'rssunsub'
         self.RssUnSubAllCommand = 'rssunsuball'
-        self.UpdateCommand = 'update'
-        self.ConfigMenuCommand = 'config'
-        self.MediaInfoCommand = 'mediainfo'
         self.ShellCommand = 'shell'
         self.ExecHelpCommand = 'exechelp'
-        self.RebootCommand = 'reboot'
 
 BotCommands = _BotCommands()

@@ -1,10 +1,10 @@
 # Implement By - @VarnaX-279
 
-import time
 import string
 import random
 import logging
 
+from time import sleep
 from telegraph import Telegraph
 from telegraph.exceptions import RetryAfterError
 
@@ -14,7 +14,7 @@ from bot import LOGGER
 class TelegraphHelper:
 	def __init__(self, author_name=None, author_url=None):
 		self.telegraph = Telegraph()
-		self.short_name = ''.join(random.SystemRandom().choices(string.ascii_letters, k=7))
+		self.short_name = ''.join(random.SystemRandom().choices(string.ascii_letters, k=8))
 		self.access_token = None
 		self.author_name = author_name
 		self.author_url = author_url
@@ -39,7 +39,7 @@ class TelegraphHelper:
 			)
 		except RetryAfterError as st:
 			LOGGER.warning(f'Telegraph Flood control exceeded. I will sleep for {st.retry_after} seconds.')
-			time.sleep(st.retry_after)
+			sleep(st.retry_after)
 			return self.create_page(title, content)
 
 	def edit_page(self, path, title, content):
@@ -53,7 +53,7 @@ class TelegraphHelper:
 			)
 		except RetryAfterError as st:
 			LOGGER.warning(f'Telegraph Flood control exceeded. I will sleep for {st.retry_after} seconds.')
-			time.sleep(st.retry_after)
+			sleep(st.retry_after)
 			return self.edit_page(path, title, content)
 
 

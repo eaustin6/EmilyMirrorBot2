@@ -4,40 +4,43 @@ import shutil
 import signal
 import subprocess
 import time
+import random
 from datetime import datetime
 from sys import executable
 
 import psutil
 import pytz
+from os import path as ospath, remove as osremove, execl as osexecl
+from subprocess import run as srun
+from asyncio import run as asyrun
+from psutil import disk_usage, cpu_percent, swap_memory, cpu_count, virtual_memory, net_io_counters, Process as psprocess
 from pyrogram import idle
-from telegram import InlineKeyboardMarkup, ParseMode
+from sys import executable
+from telegram import ParseMode, InlineKeyboardMarkup
+from telegram.ext import CommandHandler
 from telegram.error import BadRequest, Unauthorized
 from telegram.ext import CommandHandler
 from wserver import start_server_async
 from pyrogram import idle, filters, types, emoji
 
-
-from telegram import ParseMode, InlineKeyboardMarkup, InlineKeyboardButton, BotCommand
-from telegram.ext import CommandHandler, CallbackQueryHandler, CallbackContext, InlineQueryHandler
-
 from wserver import start_server_async
-from bot import bot, app, dispatcher, updater, botStartTime, IGNORE_PENDING_REQUESTS, IS_VPS, PORT, alive, web, OWNER_ID, AUTHORIZED_CHATS, LOGGER, TIMEZONE, rss_session, RESTARTED_GROUP_ID, RESTARTED_GROUP_ID2, TIMEZONE, CHANNEL_LINK, SUPPORT_LINK
+from bot import bot, app, dispatcher, updater, botStartTime, IGNORE_PENDING_REQUESTS, IS_VPS, PORT, alive, web, OWNER_ID, AUTHORIZED_CHATS, LOGGER, Interval, nox, rss_session, RESTARTED_GROUP_ID, RESTARTED_GROUP_ID2, TIMEZONE, CHANNEL_LINK, SUPPORT_LINK
 from bot import *
-from bot.helper.ext_utils import fs_utils
-from bot.helper.telegram_helper.bot_commands import BotCommands
-from bot.helper.telegram_helper.message_utils import sendMessage, sendMarkup, editMessage, sendLogFile
+from .helper.ext_utils.fs_utils import start_cleanup, clean_all, exit_clean_up
+from .helper.telegram_helper.bot_commands import BotCommands
+from .helper.telegram_helper.message_utils import sendMessage, sendMarkup, editMessage, sendLogFile
 from bot.helper.telegram_helper.message_utils import *
 from .helper.ext_utils.telegraph_helper import telegraph
 from .helper.ext_utils.bot_utils import get_readable_file_size, get_readable_time
 from .helper.telegram_helper.filters import CustomFilters
 from bot.helper.telegram_helper import button_build
-from .modules import authorize, list, cancel_mirror, mirror_status, mirror, clone, watch, shell, eval, delete, speedtest, count, leech_settings, search , rss
+from .helper.telegram_helper.button_build import ButtonMaker
+from .modules import authorize, list, cancel_mirror, mirror_status, mirror, clone, watch, shell, eval, delete, speedtest, count, leech_settings, search, rss
 
 now = datetime.now(pytz.timezone(f'{TIMEZONE}'))
 
 def stats(update, context):
-    global main
-    currentTime = get_readable_time(time.time() - botStartTime)
+    currentTime = get_readable_time(time() - botStartTime)
     current = now.strftime('%m/%d %I:%M:%S %p')
     total, used, free = shutil.disk_usage('.')
     total = get_readable_file_size(total)
@@ -73,14 +76,14 @@ def call_back_data(update, context):
     query.answer()
     main.delete()
     main = None
-
+    
 def start(update, context):
     buttons = button_build.ButtonMaker()
     buttons.buildbutton("ℭ𝔥𝔞𝔫𝔫𝔢𝔩", f"{CHANNEL_LINK}")
     buttons.buildbutton("𝔖𝔲𝔭𝔭𝔬𝔯𝔱 𝔊𝔯𝔬𝔲𝔭", f"{SUPPORT_LINK}")
     reply_markup = InlineKeyboardMarkup(buttons.build_menu(2))
     LOGGER.info('UID: {} - UN: {} - MSG: {}'.format(update.message.chat.id,update.message.chat.username,update.message.text))
-    uptime = get_readable_time((time.time() - botStartTime))
+    uptime = get_readable_time((time() - botStartTime))
     if CustomFilters.authorized_user(update) or CustomFilters.authorized_chat(update):
         if update.message.chat.type == "private" :
             reply_message = sendMessage(f"<b>🤗нєℓℓσ {update.message.chat.first_name}</b>,\n\nɯҽʅƈσɱҽ ƚσ ҽɱιʅყ ɱιɾɾσɾ Ⴆσƚ", context.bot, update)
@@ -90,27 +93,30 @@ def start(update, context):
     else :
         uname = f'<a href="tg://user?id={update.message.from_user.id}">{update.message.from_user.first_name}</a>'
         sendMessage(f"<b>нι {uname},</b>\n\n<b>ιf уσυ ωαит тσ υѕє мє</b>\n\n<b>🇾‌🇴‌🇺‌ 🇭‌🇦‌🇻‌🇪‌ 🇹‌🇴‌ 🇯‌🇴‌🇮‌🇳‌ 🇪‌🇲‌🇮‌🇱‌🇾‌ 🇲‌🇮‌🇷‌🇷‌🇴‌🇷‌</b>\n\n<b>NOTE</b> :<i> ᴀʟʟ ᴛʜᴇ ᴜᴘʟᴏᴀᴅᴇᴅ ʟɪɴᴋs ᴡɪʟʟ ʙᴇ sᴇɴᴛ ʜᴇʀᴇ ɪɴ ʏᴏᴜʀ ᴘʀɪᴠᴀᴛᴇ ᴄʜᴀᴛ ғʀᴏᴍ ɴᴏᴡ </i>", context.bot, update)
-        
+
 def restart(update, context):
     restart_message = sendMessage("Restarting...", context.bot, update)
-    fs_utils.clean_all()
+    if Interval:
+        Interval[0].cancel()
     alive.kill()
-    process = psutil.Process(web.pid)
-    for proc in process.children(recursive=True):
+    procs = psprocess(web.pid)
+    for proc in procs.children(recursive=True):
         proc.kill()
-    process.kill()
-    subprocess.run(["python3", "update.py"])
+    procs.kill()
+    clean_all()
+    srun(["python3", "update.py"])
     # Save restart message object in order to reply to it after restarting
+    nox.kill()
     with open(".restartmsg", "w") as f:
         f.truncate(0)
         f.write(f"{restart_message.chat.id}\n{restart_message.message_id}\n")
-    os.execl(executable, executable, "-m", "bot")
+    osexecl(executable, executable, "-m", "bot")
 
 
 def ping(update, context):
-    start_time = int(round(time.time() * 1000))
+    start_time = int(round(time() * 1000))
     reply = sendMessage("Starting Ping", context.bot, update)
-    end_time = int(round(time.time() * 1000))
+    end_time = int(round(time() * 1000))
     editMessage(f'{end_time - start_time} ms', reply)
 
 
@@ -163,6 +169,16 @@ help_string_telegraph = f'''<br>
 <br><br>
 <b>/{BotCommands.SetThumbCommand}</b>: Reply photo to set it as Thumbnail
 <br><br>
+<b>/{BotCommands.RssListCommand}</b>: List all subscribed rss feed info
+<br><br>
+<b>/{BotCommands.RssGetCommand}</b>: [Title] [Number](last N links): Force fetch last N links
+<br><br>
+<b>/{BotCommands.RssSubCommand}</b>: [Title] [Rss Link] f: [filter]: Subscribe new rss feed
+<br><br>
+<b>/{BotCommands.RssUnSubCommand}</b>: [Title]: Unubscribe rss feed by title
+<br><br>
+<b>/{BotCommands.RssUnSubAllCommand}</b>: Remove all rss feed subscriptions
+<br><br>
 <b>/{BotCommands.CancelMirror}</b>: Reply to the message by which the download was initiated and that download will be cancelled
 <br><br>
 <b>/{BotCommands.CancelAllCommand}</b>: Cancel all downloading tasks
@@ -205,51 +221,45 @@ help_string = f'''
 /{BotCommands.ExecHelpCommand}: Get help for Executor module (Only Owner)
 '''
 
-
 def bot_help(update, context):
-    button = button_build.ButtonMaker()
+    button = ButtonMaker()
     button.buildbutton("Other Commands", f"https://telegra.ph/{help}")
     reply_markup = InlineKeyboardMarkup(button.build_menu(1))
     sendMarkup(help_string, context.bot, update, reply_markup)
-  
+
 botcmds = [
 
-    (f'{BotCommands.MirrorCommand}', 'Mirror'),
-    (f'{BotCommands.ZipMirrorCommand}', 'Mirror and upload as zip'),
-    (f'{BotCommands.UnzipMirrorCommand}', 'Mirror and extract files'),
-    (f'{BotCommands.QbMirrorCommand}', 'Mirror torrent using qBittorrent'),
-    (f'{BotCommands.QbZipMirrorCommand}',
-     'Mirror torrent and upload as zip using qb'),
-    (f'{BotCommands.QbUnzipMirrorCommand}',
-     'Mirror torrent and extract files using qb'),
-    (f'{BotCommands.WatchCommand}', 'Mirror yt-dlp supported link'),
-    (f'{BotCommands.ZipWatchCommand}', 'Mirror yt-dlp supported link as zip'),
-    (f'{BotCommands.CloneCommand}', 'Copy file/folder to Drive'),
-    (f'{BotCommands.LeechCommand}', 'Leech'),
-    (f'{BotCommands.ZipLeechCommand}', 'Leech and upload as zip'),
-    (f'{BotCommands.UnzipLeechCommand}', 'Leech and extract files'),
-    (f'{BotCommands.QbLeechCommand}', 'Leech torrent using qBittorrent'),
-    (f'{BotCommands.QbZipLeechCommand}',
-     'Leech torrent and upload as zip using qb'),
-    (f'{BotCommands.QbUnzipLeechCommand}',
-     'Leech torrent and extract using qb'),
-    (f'{BotCommands.LeechWatchCommand}', 'Leech yt-dlp supported link'),
-    (f'{BotCommands.LeechZipWatchCommand}',
-     'Leech yt-dlp supported link as zip'),
-    (f'{BotCommands.CountCommand}', 'Count file/folder of Drive'),
-    (f'{BotCommands.DeleteCommand}', 'Delete file/folder from Drive'),
-    (f'{BotCommands.CancelMirror}', 'Cancel a task'),
-    (f'{BotCommands.CancelAllCommand}', 'Cancel all downloading tasks'),
-    (f'{BotCommands.ListCommand}', 'Search in Drive'),
-    (f'{BotCommands.LeechSetCommand}', 'Leech settings'),
-    (f'{BotCommands.SetThumbCommand}', 'Set thumbnail'),
-    (f'{BotCommands.StatusCommand}', 'Get mirror status message'),
-    (f'{BotCommands.StatsCommand}', 'Bot usage stats'),
-    (f'{BotCommands.RestartCommand}', 'Restart the bot'),
-    (f'{BotCommands.LogCommand}', 'Get the bot Log'),
-    (f'{BotCommands.HelpCommand}', 'Get detailed help')
-]
-
+        (f'{BotCommands.MirrorCommand}', 'Mirror'),
+        (f'{BotCommands.ZipMirrorCommand}','Mirror and upload as zip'),
+        (f'{BotCommands.UnzipMirrorCommand}','Mirror and extract files'),
+        (f'{BotCommands.QbMirrorCommand}','Mirror torrent using qBittorrent'),
+        (f'{BotCommands.QbZipMirrorCommand}','Mirror torrent and upload as zip using qb'),
+        (f'{BotCommands.QbUnzipMirrorCommand}','Mirror torrent and extract files using qb'),
+        (f'{BotCommands.WatchCommand}','Mirror yt-dlp supported link'),
+        (f'{BotCommands.ZipWatchCommand}','Mirror yt-dlp supported link as zip'),
+        (f'{BotCommands.CloneCommand}','Copy file/folder to Drive'),
+        (f'{BotCommands.LeechCommand}','Leech'),
+        (f'{BotCommands.ZipLeechCommand}','Leech and upload as zip'),
+        (f'{BotCommands.UnzipLeechCommand}','Leech and extract files'),
+        (f'{BotCommands.QbLeechCommand}','Leech torrent using qBittorrent'),
+        (f'{BotCommands.QbZipLeechCommand}','Leech torrent and upload as zip using qb'),
+        (f'{BotCommands.QbUnzipLeechCommand}','Leech torrent and extract using qb'),
+        (f'{BotCommands.LeechWatchCommand}','Leech yt-dlp supported link'),
+        (f'{BotCommands.LeechZipWatchCommand}','Leech yt-dlp supported link as zip'),
+        (f'{BotCommands.CountCommand}','Count file/folder of Drive'),
+        (f'{BotCommands.DeleteCommand}','Delete file/folder from Drive'),
+        (f'{BotCommands.CancelMirror}','Cancel a task'),
+        (f'{BotCommands.CancelAllCommand}','Cancel all downloading tasks'),
+        (f'{BotCommands.ListCommand}','Search in Drive'),
+        (f'{BotCommands.LeechSetCommand}','Leech settings'),
+        (f'{BotCommands.SetThumbCommand}','Set thumbnail'),
+        (f'{BotCommands.StatusCommand}','Get mirror status message'),
+        (f'{BotCommands.StatsCommand}','Bot usage stats'),
+        (f'{BotCommands.PingCommand}','Ping the bot'),
+        (f'{BotCommands.RestartCommand}','Restart the bot'),
+        (f'{BotCommands.LogCommand}','Get the bot Log'),
+        (f'{BotCommands.HelpCommand}','Get detailed help')
+    ]
 
 def main():
     # Heroku restarted (Group 1)
@@ -280,20 +290,27 @@ def main():
         except BadRequest as e:
             LOGGER.warning(e.message)
             
-            
-    fs_utils.start_cleanup()
+    start_cleanup()
     if IS_VPS:
-        asyncio.get_event_loop().run_until_complete(start_server_async(PORT))
+        asyrun(start_server_async(PORT))
     # Check if the bot is restarting
-    if os.path.isfile(".restartmsg"):
+    if ospath.isfile(".restartmsg"):
         with open(".restartmsg") as f:
             chat_id, msg_id = map(int, f)
         bot.edit_message_text("Restarted successfully!", chat_id, msg_id)
-        os.remove(".restartmsg")
-        
-    bot.set_my_commands(botcmds)        
-    start_handler = CommandHandler(
-        BotCommands.StartCommand, start, run_async=True)
+        osremove(".restartmsg")
+    elif OWNER_ID:
+        try:
+            text = "<b>Bot Restarted!</b>"
+            bot.sendMessage(chat_id=OWNER_ID, text=text, parse_mode=ParseMode.HTML)
+            if AUTHORIZED_CHATS:
+                for i in AUTHORIZED_CHATS:
+                    bot.sendMessage(chat_id=i, text=text, parse_mode=ParseMode.HTML)
+        except Exception as e:
+            LOGGER.warning(e)
+
+    bot.set_my_commands(botcmds)
+    start_handler = CommandHandler(BotCommands.StartCommand, start, run_async=True)
     ping_handler = CommandHandler(BotCommands.PingCommand, ping,
                                   filters=CustomFilters.authorized_chat | CustomFilters.authorized_user, run_async=True)
     restart_handler = CommandHandler(BotCommands.RestartCommand, restart,
@@ -302,11 +319,7 @@ def main():
                                   bot_help, filters=CustomFilters.authorized_chat | CustomFilters.authorized_user, run_async=True)
     stats_handler = CommandHandler(BotCommands.StatsCommand,
                                    stats, filters=CustomFilters.authorized_chat | CustomFilters.authorized_user, run_async=True)
-    log_handler = CommandHandler(
-        BotCommands.LogCommand, log, filters=CustomFilters.owner_filter | CustomFilters.sudo_user, run_async=True)
-    del_data_msg = CallbackQueryHandler(call_back_data, pattern="stats_close")
-    
-    dispatcher.add_handler(del_data_msg)
+    log_handler = CommandHandler(BotCommands.LogCommand, log, filters=CustomFilters.owner_filter | CustomFilters.sudo_user, run_async=True)
     dispatcher.add_handler(start_handler)
     dispatcher.add_handler(ping_handler)
     dispatcher.add_handler(restart_handler)
@@ -317,7 +330,7 @@ def main():
     LOGGER.info("⚠️ If Any optional vars are not filled The Bot will use Defaults values")
     LOGGER.info("📶 Bot Started!")
     LOGGER.info("Bot Modified by Miss Emily!")
-    signal.signal(signal.SIGINT, fs_utils.exit_clean_up)
+    signal.signal(signal.SIGINT, exit_clean_up)
     if rss_session is not None:
         rss_session.start()
 

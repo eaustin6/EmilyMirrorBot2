@@ -1,7 +1,8 @@
 from bot.helper.ext_utils.bot_utils import get_readable_file_size, MirrorStatus
+from .status import Status
 
 
-class ZipStatus:
+class ZipStatus(Status):
     def __init__(self, name, path, size):
         self.__name = name
         self.__path = path

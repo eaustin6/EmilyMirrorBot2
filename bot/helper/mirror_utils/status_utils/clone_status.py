@@ -1,7 +1,8 @@
 from bot.helper.ext_utils.bot_utils import MirrorStatus, get_readable_file_size, get_readable_time
+from .status import Status
 
 
-class CloneStatus:
+class CloneStatus(Status):
     def __init__(self, obj, size, update, gid):
         self.__obj = obj
         self.__size = size

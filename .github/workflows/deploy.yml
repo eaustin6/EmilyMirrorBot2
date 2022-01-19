@@ -1,4 +1,4 @@
-name: Manually Deploy to Heroku(US Region)
+name: Manually Deploy to Heroku
 
 on: workflow_dispatch
 

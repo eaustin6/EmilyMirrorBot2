@@ -1,21 +1,20 @@
 import time
-
-from telegram import InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import CallbackContext, CallbackQueryHandler
+import random
 from telegram.message import Message
 from telegram.update import Update
-from telegram.error import TimedOut, BadRequest, RetryAfter
-import time
+from telegram.error import RetryAfter
+from pyrogram.errors import FloodWait
 import pytz	
 import datetime	
 from datetime import datetime
 import psutil, shutil
+from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import CallbackContext, CallbackQueryHandler
 
-
-from bot import AUTO_DELETE_MESSAGE_DURATION, LOGGER, bot, dispatcher, status_reply_dict, status_reply_dict_lock, \
-                Interval, DOWNLOAD_STATUS_UPDATE_INTERVAL, RSS_CHAT_ID, rss_session, LOG_CHANNEL_ID, LOG_CHANNEL_LINK, LOG_UNAME, LOG_CHANNEL
-from bot import *              
-from bot.helper.ext_utils.bot_utils import get_readable_message, get_readable_time, setInterval, MirrorStatus
+from bot import AUTO_DELETE_MESSAGE_DURATION, LOGGER, status_reply_dict, status_reply_dict_lock, \
+                Interval, DOWNLOAD_STATUS_UPDATE_INTERVAL, RSS_CHAT_ID, rss_session, bot, LOG_CHANNEL_ID, LOG_CHANNEL_LINK, LOG_UNAME, LOG_CHANNEL
+from bot import *
+from bot.helper.ext_utils.bot_utils import get_readable_message, setInterval, MirrorStatus
 from bot.helper.ext_utils.bot_utils import *
 
 
@@ -25,8 +24,8 @@ def sendMessage(text: str, bot, update: Update):
                             reply_to_message_id=update.message.message_id,
                             text=text, allow_sending_without_reply=True, parse_mode='HTMl', disable_web_page_preview=True)
     except RetryAfter as r:
-        LOGGER.error(str(r))
-        time.sleep(r.retry_after * 1.5)
+        LOGGER.warning(str(r))
+        sleep(r.retry_after * 1.5)
         return sendMessage(text, bot, update)
     except Exception as e:
         LOGGER.error(str(e))
@@ -40,7 +39,7 @@ def sendMarkup(text: str, bot, update: Update, reply_markup: InlineKeyboardMarku
                             parse_mode='HTMl', disable_web_page_preview=True)
     except RetryAfter as r:
         LOGGER.warning(str(r))
-        time.sleep(r.retry_after * 1.5)
+        sleep(r.retry_after * 1.5)
         return sendMarkup(text, bot, update, reply_markup)
     except Exception as e:
         LOGGER.error(str(e))
@@ -53,28 +52,29 @@ def editMessage(text: str, message: Message, reply_markup=None):
                               parse_mode='HTMl', disable_web_page_preview=True)
     except RetryAfter as r:
         LOGGER.warning(str(r))
-        time.sleep(r.retry_after * 1.5)
+        sleep(r.retry_after * 1.5)
         return editMessage(text, message, reply_markup)
     except Exception as e:
         LOGGER.error(str(e))
         return
-        
+
 def sendRss(text: str, bot):
     if rss_session is None:
         try:
             return bot.send_message(RSS_CHAT_ID, text, parse_mode='HTMl', disable_web_page_preview=True)
         except RetryAfter as r:
             LOGGER.warning(str(r))
-            time.sleep(r.retry_after * 1.5)
+            sleep(r.retry_after * 1.5)
             return sendRss(text, bot)
         except Exception as e:
             LOGGER.error(str(e))
+            return
     else:
         try:
             return rss_session.send_message(RSS_CHAT_ID, text, parse_mode='HTMl', disable_web_page_preview=True)
         except FloodWait as e:
             LOGGER.warning(str(e))
-            time.sleep(e.x * 1.5)
+            sleep(e.x * 1.5)
             return sendRss(text, bot)
         except Exception as e:
             LOGGER.error(str(e))
@@ -95,7 +95,7 @@ def sendLogFile(bot, update: Update):
 
 def auto_delete_message(bot, cmd_message: Message, bot_message: Message):
     if AUTO_DELETE_MESSAGE_DURATION != -1:
-        time.sleep(AUTO_DELETE_MESSAGE_DURATION)
+        sleep(AUTO_DELETE_MESSAGE_DURATION)
         try:
             # Skip if None is passed meaning we don't want to delete bot xor cmd message
             deleteMessage(bot, cmd_message)
@@ -114,7 +114,7 @@ def delete_all_messages():
                 return
 
 def update_all_messages():
-    currentTime = get_readable_time((time.time() - botStartTime))
+    currentTime = get_readable_time((time() - botStartTime))
     msg = get_readable_message()
     msg, buttons = get_readable_message()
     with status_reply_dict_lock:
@@ -182,7 +182,7 @@ ONE, TWO, THREE = range(3)
 def refresh(update, context):
     query = update.callback_query
     query.edit_message_text(text="Refreshing Status...⏳")
-    time.sleep(3)
+    
     update_all_messages()
     
 def close(update, context):
@@ -202,7 +202,7 @@ def pop_up_stats(update, context):
     query.answer(text=stats, show_alert=True)
 
 def bot_sys_stats():
-    currentTime = get_readable_time(time.time() - botStartTime)
+    currentTime = get_readable_time(time() - botStartTime)
     cpu = psutil.cpu_percent()
     mem = psutil.virtual_memory().percent
     disk = psutil.disk_usage("/").percent

@@ -1,13 +1,14 @@
 from speedtest import Speedtest
+from telegram.ext import CommandHandler
+
 from bot.helper.telegram_helper.filters import CustomFilters
 from bot import dispatcher
 from bot.helper.telegram_helper.bot_commands import BotCommands
 from bot.helper.telegram_helper.message_utils import sendMessage, editMessage
-from telegram.ext import CommandHandler
 
 
 def speedtest(update, context):
-    speed = sendMessage("🇷‌🇺‌🇳‌🇳‌🇮‌🇳‌🇬‌ 🇸‌🇵‌🇪‌🇪‌🇩‌ 🇹‌🇪‌🇸‌🇹‌ 🇴‌🇳‌ 🇹‌🇭‌🇪‌ 🇨‌🇺‌🇷‌🇷‌🇪‌🇳‌🇹‌🇱‌🇾‌ 🇭‌🇴‌🇸‌🇹‌🇪‌🇩‌ 🇸‌🇪‌🇷‌🇻‌🇪‌🇷‌!", context.bot, update)
+    speed = sendMessage("Running Speed Test . . . ", context.bot, update)
     test = Speedtest()
     test.get_best_server()
     test.download()
@@ -41,7 +42,7 @@ def speed_convert(size):
     return f"{round(size, 2)} {units[zero]}"
 
 
-SPEED_HANDLER = CommandHandler(BotCommands.SpeedCommand, speedtest, 
+SPEED_HANDLER = CommandHandler(BotCommands.SpeedCommand, speedtest,
                                                   filters=CustomFilters.owner_filter | CustomFilters.authorized_user, run_async=True)
 
 dispatcher.add_handler(SPEED_HANDLER)
